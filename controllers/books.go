@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"web-service-gin/dtos"
 	"web-service-gin/models"
+	"web-service-gin/services"
 
 	"github.com/gin-gonic/gin"
 )
@@ -24,16 +25,17 @@ func CreateBook(c *gin.Context) {
 		return
 	}
 
-	book := models.Book{Title: bookDto.Title, Author: bookDto.Author}
+	book := services.CreateBook(bookDto)
+
 	models.DB.Create(&book)
 
 	c.IndentedJSON(http.StatusCreated, gin.H{"data": book})
 }
 
 func FindBookById(c *gin.Context) {
-	var book models.Book
+	book, err := services.GetBookById(c.Param("id"))
 
-	if err := models.DB.Where("id = ?", c.Param("id")).First(&book).Error; err != nil {
+	if err != nil {
 		c.IndentedJSON(http.StatusNotFound, gin.H{"error": "record not found"})
 		return
 	}
@@ -42,18 +44,17 @@ func FindBookById(c *gin.Context) {
 }
 
 func UpdateBook(c *gin.Context) {
-	var book models.Book
-
-	if err := models.DB.Where("id = ?", c.Param("id")).First(&book).Error; err != nil {
-		c.IndentedJSON(http.StatusNotFound, gin.H{"error": "record not found"})
-		return
-	}
-
 	var bookDto dtos.UpdateBookDto
 
 	if err := c.ShouldBindJSON(&bookDto); err != nil {
 		c.IndentedJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
+	}
+
+	book, err := services.UpdateBook(c.Param("id"), bookDto)
+
+	if err != nil {
+		c.IndentedJSON(http.StatusNotFound, gin.H{"error": "record not found"})
 	}
 
 	models.DB.Model(&book).Updates(bookDto)
@@ -62,14 +63,12 @@ func UpdateBook(c *gin.Context) {
 }
 
 func DeleteBook(c *gin.Context) {
-	var book models.Book
+	err := services.DeleteBook(c.Param("id"))
 
-	if err := models.DB.Where("id = ?", c.Param("id")).First(&book).Error; err != nil {
+	if err != nil {
 		c.IndentedJSON(http.StatusNotFound, gin.H{"error": "record not found"})
 		return
 	}
-
-	models.DB.Delete(book)
 
 	c.IndentedJSON(http.StatusOK, gin.H{})
 }
